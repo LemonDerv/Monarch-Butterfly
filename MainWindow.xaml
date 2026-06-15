@@ -1,0 +1,841 @@
+<Window x:Class="PSControllerUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PSControllerUI"
+        mc:Ignorable="d"
+        Title="Monarch Butterfly" Icon="task bar icon.png"
+        Height="680" Width="1120"
+        MinWidth="1120" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="#0E0914" Foreground="#E0E0E6"
+        UseLayoutRounding="True" 
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" 
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.BitmapScalingMode="HighQuality">
+
+    <Window.Resources>
+        <!-- Concept 1 Neon Purple Theme Colors -->
+        <SolidColorBrush x:Key="BgDarkBrush" Color="#0E0914"/>
+        <SolidColorBrush x:Key="SidebarBgBrush" Color="#110B19"/>
+        <SolidColorBrush x:Key="CardBgBrush" Color="#161022"/>
+        <SolidColorBrush x:Key="BorderPurpleBrush" Color="#2A1E3C"/>
+        <SolidColorBrush x:Key="AccentPurpleBrush" Color="#9B51E0"/>
+        <SolidColorBrush x:Key="GlowPurpleBrush" Color="#BD10E0"/>
+        <SolidColorBrush x:Key="AccentGreenBrush" Color="#00FF87"/>
+        <SolidColorBrush x:Key="TextLightBrush" Color="#F2F2F7"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#8E8E93"/>
+
+        <!-- Custom Slider Style (Purple Theme) -->
+        <Style x:Key="GlowingSliderStyle" TargetType="Slider">
+            <Setter Property="Background" Value="#251E33"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto" MinHeight="{TemplateBinding MinHeight}"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Border x:Name="TrackBackground" Grid.Row="1" Height="8" CornerRadius="4" Background="{TemplateBinding Background}" Margin="5,0"/>
+                            <Track x:Name="PART_Track" Grid.Row="1">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="8" CornerRadius="4,0,0,4" Background="#9B51E0" Margin="5,0,0,0"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="20" Height="20">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Fill="#FFFFFF" Stroke="#9B51E0" StrokeThickness="4" Width="18" Height="18">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect Color="#BD10E0" BlurRadius="6" ShadowDepth="0"/>
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Custom CheckBox / Toggle Switch Style (Purple Theme) -->
+        <Style x:Key="ToggleSwitchStyle" TargetType="CheckBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <BulletDecorator Background="Transparent" Cursor="Hand">
+                            <BulletDecorator.Bullet>
+                                <Grid Width="46" Height="24">
+                                    <Border x:Name="BackgroundBorder" CornerRadius="12" Background="#282236" BorderBrush="#3D3254" BorderThickness="1"/>
+                                    <Ellipse x:Name="Thumb" Fill="#8E8E93" Width="18" Height="18" HorizontalAlignment="Left" Margin="3,0,3,0">
+                                        <Ellipse.RenderTransform>
+                                            <TranslateTransform X="0"/>
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                </Grid>
+                            </BulletDecorator.Bullet>
+                            <ContentPresenter Margin="8,2,0,0" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </BulletDecorator>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#9B51E0"/>
+                                <Setter TargetName="BackgroundBorder" Property="BorderBrush" Value="#9B51E0"/>
+                                <Setter TargetName="Thumb" Property="Fill" Value="#0E0914"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Thumb" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="22" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Thumb" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="0" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style for the ToggleButton inside the ComboBox -->
+        <Style x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="templateRoot" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="4">
+                            <Grid HorizontalAlignment="Right" Width="20">
+                                <Path x:Name="arrow" 
+                                      Data="M 0 0 L 4 4 L 8 0 Z" 
+                                      Fill="#BD10E0" 
+                                      HorizontalAlignment="Center" 
+                                      VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="templateRoot" Property="Background" Value="#2A1E3C"/>
+                                <Setter TargetName="templateRoot" Property="BorderBrush" Value="#9B51E0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="templateRoot" Property="Background" Value="#1C142A"/>
+                                <Setter TargetName="templateRoot" Property="BorderBrush" Value="#9B51E0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style for ComboBox -->
+        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1C142A"/>
+            <Setter Property="BorderBrush" Value="#3D3254"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4,24,4"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="true"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid x:Name="templateRoot" SnapsToDevicePixels="true">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="0"/>
+                            </Grid.ColumnDefinitions>
+                            <Popup x:Name="PART_Popup" 
+                                   AllowsTransparency="true" 
+                                   Grid.ColumnSpan="2" 
+                                   IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                   Margin="1" 
+                                   Placement="Bottom" 
+                                   PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
+                                <Border x:Name="dropDownBorder" 
+                                        Background="#161022" 
+                                        BorderBrush="#3D3254" 
+                                        BorderThickness="1" 
+                                        CornerRadius="4" 
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}" 
+                                        MinWidth="{Binding ActualWidth, ElementName=templateRoot}">
+                                    <ScrollViewer x:Name="DropDownScrollViewer">
+                                        <Grid x:Name="grid" RenderOptions.ClearTypeHint="Enabled">
+                                            <Canvas x:Name="canvas" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0">
+                                                <Rectangle x:Name="opaqueRect" 
+                                                           Fill="{Binding Background, ElementName=dropDownBorder}" 
+                                                           Height="{Binding ActualHeight, ElementName=dropDownBorder}" 
+                                                           Width="{Binding ActualWidth, ElementName=dropDownBorder}"/>
+                                            </Canvas>
+                                            <ItemsPresenter x:Name="ItemsPresenter" 
+                                                            KeyboardNavigation.DirectionalNavigation="Contained" 
+                                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                        </Grid>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                            <ToggleButton x:Name="toggleButton" 
+                                          Background="{TemplateBinding Background}" 
+                                          BorderBrush="{TemplateBinding BorderBrush}" 
+                                          BorderThickness="{TemplateBinding BorderThickness}" 
+                                          Grid.ColumnSpan="2" 
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                          Style="{StaticResource ComboBoxToggleButton}"/>
+                            <ContentPresenter x:Name="contentPresenter" 
+                                              Content="{TemplateBinding SelectionBoxItem}" 
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" 
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" 
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" 
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              IsHitTestVisible="false" 
+                                              Margin="{TemplateBinding Padding}" 
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="false">
+                                <Setter TargetName="dropDownBorder" Property="Height" Value="95"/>
+                            </Trigger>
+                            <Trigger Property="IsGrouping" Value="true">
+                                <Setter Property="ScrollViewer.CanContentScroll" Value="false"/>
+                            </Trigger>
+                            <Trigger Property="ScrollViewer.CanContentScroll" Value="false" SourceName="DropDownScrollViewer">
+                                <Setter TargetName="ItemsPresenter" Property="Margin" Value="0,0,18,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style for ComboBoxItem (dropdown list items) -->
+        <Style x:Key="DarkComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                Padding="{TemplateBinding Padding}" 
+                                SnapsToDevicePixels="true">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2A1E3C"/>
+                                <Setter Property="Foreground" Value="#00FF87"/> <!-- Green highlight text -->
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#9B51E0"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="true"/>
+                                    <Condition Property="IsMouseOver" Value="true"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="#A862EC"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- 1. Left Sidebar -->
+            <ColumnDefinition Width="210"/>
+            <!-- 2. Main Dashboard -->
+            <ColumnDefinition Width="*"/>
+            <!-- 3. Right Panel -->
+            <ColumnDefinition Width="280"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ==================== 1. LEFT SIDEBAR ==================== -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarBgBrush}" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="0,0,1,0">
+            <Grid Margin="15,25,15,20">
+                <Grid.RowDefinitions>
+                    <!-- Logo -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Navigation Menu -->
+                    <RowDefinition Height="*"/>
+                    <!-- Footer Profile / Slogan -->
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Logo Section -->
+                <StackPanel Grid.Row="0" Margin="5,0,0,30">
+                    <TextBlock Text="MONARCH" FontSize="26" FontWeight="Black" Foreground="#FFFFFF"/>
+                    <TextBlock Text="BUTTERFLY" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentPurpleBrush}" Margin="0,-4,0,0"/>
+                </StackPanel>
+
+                <!-- Navigation List -->
+                <StackPanel Grid.Row="1">
+                    <!-- Dashboard Active -->
+                    <Border Background="#1F162F" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⊞" FontSize="16" Foreground="{StaticResource AccentPurpleBrush}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="Dashboard" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border CornerRadius="6" Padding="12,10" Margin="0,0,0,8" Cursor="Hand" MouseDown="SettingsMenu_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚙" FontSize="16" Foreground="{StaticResource AccentPurpleBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="Settings" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border CornerRadius="6" Padding="12,10" Margin="0,0,0,8" Opacity="0.5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ⓘ" FontSize="16" Foreground="#FFFFFF" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="About" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Sidebar Footer (Avatar & Japanese slogan) -->
+                <StackPanel Grid.Row="2" Margin="0,20,0,0">
+                    <StackPanel HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <!-- Rounded Avatar Image -->
+                        <Border Width="120" Height="120" CornerRadius="30" BorderBrush="{StaticResource AccentPurpleBrush}" BorderThickness="1.5" HorizontalAlignment="Center">
+                            <Border.Background>
+                                <ImageBrush Stretch="UniformToFill">
+                                    <ImageBrush.ImageSource>
+                                        <BitmapImage UriSource="pack://application:,,,/Reze.PNG" DecodePixelWidth="120" CacheOption="OnLoad"/>
+                                    </ImageBrush.ImageSource>
+                                </ImageBrush>
+                            </Border.Background>
+                        </Border>
+                        <TextBlock Text="未来を操作する" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                        <TextBlock Text="Must one person's victory" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock Text="be another ones humiliation?" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    
+                    <TextBlock Text="DRIVER VERSION" FontSize="9.5" Foreground="#B0A8C5" FontWeight="SemiBold"/>
+                    <TextBlock Text="v1.0.0.0" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentPurpleBrush}"/>
+                    <TextBlock Text="Built for Performance" FontSize="9.5" Foreground="#B0A8C5"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== 2. MAIN DASHBOARD ==================== -->
+        <Grid Grid.Column="1" Margin="25">
+            <!-- Background Mascot Image with Purple Gradient Mask -->
+            <Grid.Background>
+                <VisualBrush Stretch="UniformToFill">
+                    <VisualBrush.Visual>
+                        <Grid Width="600" Height="600" Background="#0E0914">
+                            <!-- Mascot on the Right -->
+                            <Image HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-40,0,0" Width="400" Height="400" Opacity="0.3">
+                                <Image.Source>
+                                    <BitmapImage UriSource="pack://application:,,,/mascot.PNG" DecodePixelWidth="400" CacheOption="OnLoad"/>
+                                </Image.Source>
+                                <Image.OpacityMask>
+                                    <RadialGradientBrush Center="0.8,0.4" GradientOrigin="0.8,0.4" RadiusX="0.8" RadiusY="0.4">
+                                        <GradientStop Color="#FF000000" Offset="0.1"/>
+                                        <GradientStop Color="#00000000" Offset="1.0"/>
+                                    </RadialGradientBrush>
+                                </Image.OpacityMask>
+                            </Image>
+                            <!-- Gradient overlay from solid dark-purple on the left to transparent on the right -->
+                            <Rectangle Width="600" Height="600">
+                                <Rectangle.Fill>
+                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                        <GradientStop Color="#0E0914" Offset="0.0"/>
+                                        <GradientStop Color="#0E0914" Offset="0.4"/>
+                                        <GradientStop Color="#000E0914" Offset="1.0"/>
+                                    </LinearGradientBrush>
+                                </Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                    </VisualBrush.Visual>
+                </VisualBrush>
+            </Grid.Background>
+            
+            <Grid.RowDefinitions>
+                <!-- Welcome & Driver Title -->
+                <RowDefinition Height="Auto"/>
+                <!-- Status Pills -->
+                <RowDefinition Height="Auto"/>
+                <!-- Button Options -->
+                <RowDefinition Height="Auto"/>
+                <!-- Visualizer -->
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,15">
+                <TextBlock Text="ようこそ、" FontSize="12" Foreground="{StaticResource AccentPurpleBrush}" FontWeight="SemiBold"/>
+                <TextBlock Text="WELCOME BACK" FontSize="10" Foreground="{StaticResource AccentPurpleBrush}" FontWeight="Bold" Margin="0,-2,0,0"/>
+                <TextBlock x:Name="DriverStatusText" Text="DRIVER ACTIVE" FontSize="36" FontWeight="Black" Foreground="#FFFFFF" Margin="0,5,0,0">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="#BD10E0" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+                <TextBlock Text="Your PS3 Controller Driver is running smoothly." FontSize="12" Foreground="{StaticResource TextLightBrush}"/>
+            </StackPanel>
+
+            <!-- Status Pills -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
+                <Border Background="#1C142A" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="STATUS" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <!-- Connected state dot -->
+                        <Ellipse x:Name="StatusPillDot" Width="6" Height="6" Fill="#FF3B30" Margin="8,1,5,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusPillText" Text="Disconnected" FontWeight="Bold" FontSize="11" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#1C142A" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="UPTIME" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="UptimePillText" Text="00:00:00" FontWeight="Bold" FontSize="11" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Main Button Options -->
+            <Grid Grid.Row="2" Margin="0,0,0,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,0" Cursor="Hand" MouseDown="MemoryEditorCard_Click">
+                    <StackPanel>
+                        <TextBlock Text="🎮 CONTROLLER MAP" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Edit Layout Mappings" FontSize="9" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="4,0,4,0" Cursor="Hand" MouseDown="ModuleCard_Click">
+                    <StackPanel>
+                        <TextBlock Text="⚡ KEYBOARD MAPPER" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Manage Key Emulation" FontSize="9" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0" Cursor="Hand" MouseDown="SystemInfoCard_Click">
+                    <StackPanel>
+                        <TextBlock Text="⚙ HAPTICS &amp; OPTIONS" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Rumble and LED controls" FontSize="9" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Visual Controller overlay -->
+            <Border Grid.Row="3" Background="#130D1F" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="12" Padding="15">
+                <Grid>
+                    <!-- Canvas for Controller Visuals -->
+                    <Viewbox Margin="5">
+                        <Canvas Width="500" Height="270">
+                            <!-- Gamepad Body Shell (Purple Theme with Radial Glow) -->
+                            <Path Stroke="#3A2D53" StrokeThickness="3" 
+                                  Data="M 120,50 C 150,45 350,45 380,50 C 430,60 480,170 470,220 C 460,270 410,280 380,230 C 350,180 330,160 250,160 C 170,160 150,180 120,230 C 90,280 40,270 30,220 C 20,170 70,60 120,50 Z">
+                                <Path.Fill>
+                                    <RadialGradientBrush Center="250,135" GradientOrigin="250,135" RadiusX="250" RadiusY="135" MappingMode="Absolute">
+                                        <GradientStop Color="#241B33" Offset="0"/>
+                                        <GradientStop Color="#120A1D" Offset="1"/>
+                                    </RadialGradientBrush>
+                                </Path.Fill>
+                                <Path.Effect>
+                                    <DropShadowEffect Color="#BD10E0" BlurRadius="12" ShadowDepth="0" Opacity="0.2"/>
+                                </Path.Effect>
+                            </Path>
+
+                            <!-- Controller structural/grip lines -->
+                            <Path Stroke="#251A38" StrokeThickness="2" Data="M 140,55 C 130,120 150,170 125,220" />
+                            <Path Stroke="#251A38" StrokeThickness="2" Data="M 360,55 C 370,120 350,170 375,220" />
+
+                            <!-- Analog Trigger Meters (L2 / R2) -->
+                            <Border x:Name="L2TriggerGauge" Canvas.Left="60" Canvas.Top="5" Width="12" Height="35" Background="#1D162B" BorderBrush="#3D3254" BorderThickness="1" CornerRadius="2">
+                                <Border x:Name="L2TriggerGaugeFill" Background="{StaticResource AccentPurpleBrush}" Height="0" CornerRadius="2" VerticalAlignment="Bottom"/>
+                            </Border>
+                            <TextBlock Text="L2" Canvas.Left="61" Canvas.Top="42" FontSize="8" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+
+                            <Border x:Name="R2TriggerGauge" Canvas.Left="428" Canvas.Top="5" Width="12" Height="35" Background="#1D162B" BorderBrush="#3D3254" BorderThickness="1" CornerRadius="2">
+                                <Border x:Name="R2TriggerGaugeFill" Background="{StaticResource AccentPurpleBrush}" Height="0" CornerRadius="2" VerticalAlignment="Bottom"/>
+                            </Border>
+                            <TextBlock Text="R2" Canvas.Left="429" Canvas.Top="42" FontSize="8" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+
+                            <!-- Bumpers (L1 / R1) -->
+                            <Rectangle x:Name="L1BumperVisual" Canvas.Left="80" Canvas.Top="25" Width="50" Height="10" Fill="#231A33" RadiusX="3" RadiusY="3" Stroke="#3D3254" StrokeThickness="1.5"/>
+                            <Rectangle x:Name="R1BumperVisual" Canvas.Left="370" Canvas.Top="25" Width="50" Height="10" Fill="#231A33" RadiusX="3" RadiusY="3" Stroke="#3D3254" StrokeThickness="1.5"/>
+
+                            <!-- Left Analog Stick Outer Ring -->
+                            <Ellipse Canvas.Left="150" Canvas.Top="130" Width="60" Height="60" Stroke="#3A2D53" StrokeThickness="1.5" Fill="#090510"/>
+                            <!-- Left Analog Stick Floating Dot -->
+                            <Grid Canvas.Left="160" Canvas.Top="140" Width="40" Height="40">
+                                <Grid.RenderTransform>
+                                    <TranslateTransform x:Name="LeftStickTranslate" X="0" Y="0"/>
+                                </Grid.RenderTransform>
+                                <Ellipse Fill="#221A33" Stroke="#BD10E0" StrokeThickness="2">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect Color="#BD10E0" BlurRadius="6" ShadowDepth="0"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <Ellipse Width="18" Height="18" Fill="#0E0914" Stroke="#3D3254" StrokeThickness="1"/>
+                            </Grid>
+
+                            <!-- Right Analog Stick Outer Ring -->
+                            <Ellipse Canvas.Left="290" Canvas.Top="130" Width="60" Height="60" Stroke="#3A2D53" StrokeThickness="1.5" Fill="#090510"/>
+                            <!-- Right Analog Stick Floating Dot -->
+                            <Grid Canvas.Left="300" Canvas.Top="140" Width="40" Height="40">
+                                <Grid.RenderTransform>
+                                    <TranslateTransform x:Name="RightStickTranslate" X="0" Y="0"/>
+                                </Grid.RenderTransform>
+                                <Ellipse Fill="#221A33" Stroke="#BD10E0" StrokeThickness="2">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect Color="#BD10E0" BlurRadius="6" ShadowDepth="0"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <Ellipse Width="18" Height="18" Fill="#0E0914" Stroke="#3D3254" StrokeThickness="1"/>
+                            </Grid>
+
+                            <!-- D-Pad Group -->
+                            <Canvas Canvas.Left="70" Canvas.Top="80" Width="60" Height="60">
+                                <!-- D-Pad Base Circle -->
+                                <Ellipse Canvas.Left="-3" Canvas.Top="-3" Width="66" Height="66" Fill="#110B1A" Stroke="#2D2144" StrokeThickness="1"/>
+
+                                <!-- Up Key -->
+                                <Path x:Name="DpadUpVisual" Fill="Transparent" Stroke="#3D3254" StrokeThickness="1"
+                                      Data="M 20,20 L 20,2 L 40,2 L 40,20 Z" />
+                                <!-- Up Arrow symbol -->
+                                <Path Data="M 30,5 L 25,12 L 35,12 Z" Fill="#BD10E0" Opacity="0.8"/>
+
+                                <!-- Down Key -->
+                                <Path x:Name="DpadDownVisual" Fill="Transparent" Stroke="#3D3254" StrokeThickness="1"
+                                      Data="M 20,40 L 20,58 L 40,58 L 40,40 Z" />
+                                <!-- Down Arrow symbol -->
+                                <Path Data="M 30,55 L 25,48 L 35,48 Z" Fill="#BD10E0" Opacity="0.8"/>
+
+                                <!-- Left Key -->
+                                <Path x:Name="DpadLeftVisual" Fill="Transparent" Stroke="#3D3254" StrokeThickness="1"
+                                      Data="M 20,20 L 2,20 L 2,40 L 20,40 Z" />
+                                <!-- Left Arrow symbol -->
+                                <Path Data="M 5,30 L 12,25 L 12,35 Z" Fill="#BD10E0" Opacity="0.8"/>
+
+                                <!-- Right Key -->
+                                <Path x:Name="DpadRightVisual" Fill="Transparent" Stroke="#3D3254" StrokeThickness="1"
+                                      Data="M 40,20 L 58,20 L 58,40 L 40,40 Z" />
+                                <!-- Right Arrow symbol -->
+                                <Path Data="M 55,30 L 48,25 L 48,35 Z" Fill="#BD10E0" Opacity="0.8"/>
+
+                                <!-- Center cover block of the cross -->
+                                <Rectangle Canvas.Left="20" Canvas.Top="20" Width="20" Height="20" Fill="#110B1A" Stroke="#2D2144" StrokeThickness="0"/>
+                            </Canvas>
+
+                            <!-- Face Action Buttons Outer Circle (Housing) -->
+                            <Ellipse Canvas.Left="362" Canvas.Top="77" Width="66" Height="66" Stroke="#2D2144" StrokeThickness="1.5" Fill="#110B1A"/>
+                            
+                            <!-- Face Buttons with accurate vector symbols -->
+                            <!-- Triangle Button -->
+                            <Ellipse x:Name="BtnTriangle" Canvas.Left="385" Canvas.Top="80" Width="20" Height="20" Fill="#231A33" Stroke="#3D3254" StrokeThickness="1"/>
+                            <Polygon Points="395,84.5 390.5,93.5 399.5,93.5" Stroke="#00FF87" StrokeThickness="2" Fill="Transparent"/>
+
+                            <!-- Circle Button -->
+                            <Ellipse x:Name="BtnCircle" Canvas.Left="405" Canvas.Top="100" Width="20" Height="20" Fill="#231A33" Stroke="#3D3254" StrokeThickness="1"/>
+                            <Ellipse Width="10" Height="10" Canvas.Left="410" Canvas.Top="105" Stroke="#FF3B30" StrokeThickness="2" Fill="Transparent"/>
+
+                            <!-- Cross Button -->
+                            <Ellipse x:Name="BtnCross" Canvas.Left="385" Canvas.Top="120" Width="20" Height="20" Fill="#231A33" Stroke="#3D3254" StrokeThickness="1"/>
+                            <Path Data="M 391,126 L 399,134 M 399,126 L 391,134" Stroke="#00E5FF" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+
+                            <!-- Square Button -->
+                            <Ellipse x:Name="BtnSquare" Canvas.Left="365" Canvas.Top="100" Width="20" Height="20" Fill="#231A33" Stroke="#3D3254" StrokeThickness="1"/>
+                            <Rectangle Width="9" Height="9" Canvas.Left="370.5" Canvas.Top="105.5" Stroke="#BD10E0" StrokeThickness="2" Fill="Transparent" RadiusX="0.5" RadiusY="0.5"/>
+
+                            <!-- Center Buttons -->
+                            <Grid Canvas.Left="205" Canvas.Top="95" Width="24" Height="10">
+                                <Rectangle x:Name="BtnSelect" Fill="#231A33" RadiusX="2" RadiusY="2"/>
+                            </Grid>
+                            <TextBlock Text="SELECT" Canvas.Left="201" Canvas.Top="108" FontSize="7" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+
+                            <Grid Canvas.Left="271" Canvas.Top="95" Width="24" Height="10">
+                                <Rectangle x:Name="BtnStart" Fill="#231A33" RadiusX="2" RadiusY="2"/>
+                            </Grid>
+                            <TextBlock Text="START" Canvas.Left="271" Canvas.Top="108" FontSize="7" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+
+                            <!-- PS Button -->
+                            <Grid Canvas.Left="238" Canvas.Top="112" Width="24" Height="24">
+                                <Ellipse x:Name="BtnPS" Fill="#231A33" Stroke="#3D3254" StrokeThickness="1"/>
+                                <TextBlock Text="PS" FontSize="9" Foreground="#F2F2F7" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Canvas>
+                    </Viewbox>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ==================== 3. RIGHT PANEL ==================== -->
+        <Border Grid.Column="2" Background="{StaticResource SidebarBgBrush}" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1,0,0,0">
+            <Grid Margin="15,20,15,20">
+                <Grid.RowDefinitions>
+                    <!-- System Overview (Gauges) -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Quick Actions -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Config & logs -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- System Overview (Mapped to Stick values LX, LY, RX, RY) -->
+                <StackPanel Grid.Row="0" Margin="0,0,0,15">
+                    <TextBlock Text="SYSTEM OVERVIEW" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="5,0,0,15"/>
+                    
+                    <!-- 2x2 Grid of Circular Gauges -->
+                    <UniformGrid Columns="2" Rows="2" Height="190">
+                        <!-- Left Stick X (CPU) -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Grid Width="50" Height="50">
+                                <Ellipse Stroke="#1F162F" StrokeThickness="4" Width="42" Height="42"/>
+                                <Path x:Name="CpuGaugePath" Stroke="{StaticResource AccentPurpleBrush}" StrokeThickness="4" Width="50" Height="50">
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="#BD10E0" BlurRadius="4" ShadowDepth="0"/>
+                                    </Path.Effect>
+                                </Path>
+                                <TextBlock x:Name="CpuText" Text="0%" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Text="CPU" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Left Stick Y (RAM) -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Grid Width="50" Height="50">
+                                <Ellipse Stroke="#1F162F" StrokeThickness="4" Width="42" Height="42"/>
+                                <Path x:Name="RamGaugePath" Stroke="{StaticResource AccentPurpleBrush}" StrokeThickness="4" Width="50" Height="50">
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="#BD10E0" BlurRadius="4" ShadowDepth="0"/>
+                                    </Path.Effect>
+                                </Path>
+                                <TextBlock x:Name="RamText" Text="0%" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Text="RAM" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Right Stick X (LV2 MEM) -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,10,0,0">
+                            <Grid Width="50" Height="50">
+                                <Ellipse Stroke="#1F162F" StrokeThickness="4" Width="42" Height="42"/>
+                                <Path x:Name="Lv2GaugePath" Stroke="{StaticResource AccentPurpleBrush}" StrokeThickness="4" Width="50" Height="50">
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="#BD10E0" BlurRadius="4" ShadowDepth="0"/>
+                                    </Path.Effect>
+                                </Path>
+                                <TextBlock x:Name="Lv2Text" Text="0%" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Text="LV2 MEM" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Right Stick Y (IOP) -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,10,0,0">
+                            <Grid Width="50" Height="50">
+                                <Ellipse Stroke="#1F162F" StrokeThickness="4" Width="42" Height="42"/>
+                                <Path x:Name="IopGaugePath" Stroke="{StaticResource AccentPurpleBrush}" StrokeThickness="4" Width="50" Height="50">
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="#BD10E0" BlurRadius="4" ShadowDepth="0"/>
+                                    </Path.Effect>
+                                </Path>
+                                <TextBlock x:Name="IopText" Text="0%" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Text="IOP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+
+                <!-- Quick Actions List (Matching Concept 1 layout on the right) -->
+                <StackPanel Grid.Row="1" Margin="0,0,0,15">
+                    <TextBlock Text="QUICK ACTIONS" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="5,0,0,8"/>
+                    <Border Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6" Cursor="Hand" MouseDown="ConnectButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔌" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="QuickConnectText" Text="Attach to PS3" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6" Cursor="Hand" MouseDown="ReloadDriver_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔄" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Reload Driver" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6" Cursor="Hand" MouseDown="ClearLogs_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🧹" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Clear Logs" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Configuration panel + scrolling diagnostics log -->
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Emulation settings -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                        <CheckBox x:Name="XboxEmulationToggle" Style="{StaticResource ToggleSwitchStyle}" Click="XboxEmulationToggle_Click" Margin="0,0,0,8">
+                            <TextBlock Text="Xbox 360 Emulation" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        </CheckBox>
+                        <CheckBox x:Name="KbdMouseMappingToggle" Style="{StaticResource ToggleSwitchStyle}" Click="KbdMouseMappingToggle_Click">
+                            <TextBlock Text="Keyboard/Mouse Map" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        </CheckBox>
+
+                        <!-- ViGEm Missing Warning Panel -->
+                        <Border x:Name="ViGEmWarningPanel" Visibility="Collapsed" Background="#2C121A" BorderBrush="#5F1E28" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,10,0,0">
+                            <StackPanel>
+                                <TextBlock Text="ViGEmBus Missing" FontWeight="Bold" Foreground="#FF8E8E" FontSize="11"/>
+                                <Button Content="Download Driver" Click="DownloadViGEm_Click" Height="22" Background="#A13E3D" Foreground="#FFFFFF" FontSize="10" BorderThickness="0" FontWeight="Bold" Margin="0,5,0,0">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="3"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Rumble settings card -->
+                    <Border Grid.Row="1" Background="#161022" BorderBrush="{StaticResource BorderPurpleBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Rumble Test Motor" FontSize="10" Foreground="#FFFFFF" Margin="0,0,0,5"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="RumbleSlider" Grid.Column="0" Minimum="0" Maximum="255" Value="0" ValueChanged="RumbleSlider_ValueChanged" Style="{StaticResource GlowingSliderStyle}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="RumbleValText" Grid.Column="1" Text="0" Width="24" FontSize="11" Foreground="{StaticResource AccentPurpleBrush}" FontWeight="Bold" TextAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Diagnostics Log -->
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="SYSTEM LOG" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="5,0,0,5"/>
+                        <ListBox x:Name="LogListBox" Grid.Row="1" Background="#0C0712" Foreground="#8A7EA6" BorderThickness="0" FontFamily="Consolas" FontSize="10" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+                            <ListBox.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </ListBox.Resources>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="1,1"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- ==================== CUSTOM MODAL OVERLAY ==================== -->
+        <Grid x:Name="ModalOverlay" Grid.Column="0" Grid.ColumnSpan="3" Panel.ZIndex="1000" Visibility="Collapsed" Background="#C008050E">
+            <Border Background="#161022" BorderBrush="{StaticResource AccentPurpleBrush}" BorderThickness="1.5" CornerRadius="12" Width="480" Height="380" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect Color="#BD10E0" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
+                </Border.Effect>
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <!-- Modal Title -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Modal Content -->
+                        <RowDefinition Height="*"/>
+                        <!-- Modal Close Button -->
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Grid Grid.Row="0" Margin="0,0,0,15">
+                        <TextBlock x:Name="ModalTitle" Text="MODAL TITLE" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,30,0" VerticalAlignment="Center"/>
+                        <Button Content="✕" Click="CloseModal_Click" Width="24" Height="24" HorizontalAlignment="Right" VerticalAlignment="Center" Background="Transparent" Foreground="#8E8E93" BorderThickness="0" FontSize="14" FontWeight="Bold" Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="#FF3B30"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                    
+                    <!-- Content views -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
+                        <StackPanel x:Name="ModalContentStack">
+                            <!-- Dynamically populated content -->
+                        </StackPanel>
+                    </ScrollViewer>
+                    
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="Restore to Default" Click="RestoreDefaultModal_Click" Height="30" Background="#2A1E3C" Foreground="#F2F2F7" FontSize="11" FontWeight="Bold" BorderThickness="0">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                        <Button Grid.Column="2" Content="Save" Click="SaveModal_Click" Height="30" Background="#9B51E0" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold" BorderThickness="0">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
