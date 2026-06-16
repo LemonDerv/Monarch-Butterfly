@@ -507,6 +507,9 @@ namespace PSControllerUI
                 r3       = (data[6] & 0x80) != 0;
                 ps       = length >= 8 && (data[7] & 0x01) != 0;
             }
+            // Read analog trigger values if available; fallback to digital buttons
+            byte l2Analog = map?.LeftTrigger?.ReadByte(data, length) ?? (byte)(l2 ? 255 : 0);
+            byte r2Analog = map?.RightTrigger?.ReadByte(data, length) ?? (byte)(r2 ? 255 : 0);
 
             // Perform UI update via Dispatcher
             Dispatcher.BeginInvoke(new Action(() =>
@@ -516,8 +519,8 @@ namespace PSControllerUI
                 RightStickTranslate.X = rXOffset;
                 RightStickTranslate.Y = rYOffset;
 
-                L2TriggerGaugeFill.Height = l2 ? 35.0 : 0.0;
-                R2TriggerGaugeFill.Height = r2 ? 35.0 : 0.0;
+                L2TriggerGaugeFill.Height = (l2Analog / 255.0) * 35.0;
+                R2TriggerGaugeFill.Height = (r2Analog / 255.0) * 35.0;
 
                 DpadUpVisual.Fill = dUp ? _activeBrush : Brushes.Transparent;
                 DpadDownVisual.Fill = dDown ? _activeBrush : Brushes.Transparent;
@@ -540,14 +543,14 @@ namespace PSControllerUI
             // Also feed to emulation if active
             if (_xboxEmulationEnabled && _vigemClient.IsSupported)
             {
-                UpdateXboxEmulationGeneric(lx, ly, rx, ry, cross, circle, square, triangle, l1, r1, l2, r2, select, start, l3, r3, ps, dUp, dDown, dLeft, dRight);
+                UpdateXboxEmulationGeneric(lx, ly, rx, ry, cross, circle, square, triangle, l1, r1, l2Analog, r2Analog, select, start, l3, r3, ps, dUp, dDown, dLeft, dRight);
             }
         }
 
         private void UpdateXboxEmulationGeneric(
             byte lx, byte ly, byte rx, byte ry,
             bool cross, bool circle, bool square, bool triangle,
-            bool l1, bool r1, bool l2, bool r2,
+            bool l1, bool r1, byte l2Analog, byte r2Analog,
             bool select, bool start, bool l3, bool r3, bool ps,
             bool dUp, bool dDown, bool dLeft, bool dRight)
         {
@@ -572,8 +575,8 @@ namespace PSControllerUI
             if (ps) buttons |= _mapXboxPS;
 
             report.wButtons = buttons;
-            report.bLeftTrigger = (byte)(l2 ? 255 : 0);
-            report.bRightTrigger = (byte)(r2 ? 255 : 0);
+            report.bLeftTrigger = l2Analog;
+            report.bRightTrigger = r2Analog;
 
             report.sThumbLX = (short)((lx - 128) * 256);
             report.sThumbLY = (short)(-(ly - 128) * 256);

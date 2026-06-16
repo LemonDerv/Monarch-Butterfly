@@ -49,6 +49,7 @@ namespace PSControllerUI
             public int BitSize;     // Number of bits (8 for a standard byte-sized axis)
             public int LogicalMin;
             public int LogicalMax;
+            public int DataIndex;   // Tracks field ordering in descriptor
             public string Name = "";
 
             /// <summary>
@@ -280,6 +281,10 @@ namespace PSControllerUI
                 var map = new HidReportMap();
                 var diagnosticLines = new List<string>();
 
+                // Temporary collections to hold axes for dynamic mapping after parsing
+                var genericAxes = new Dictionary<ushort, AxisInfo>();
+                var simulationAxes = new Dictionary<ushort, AxisInfo>();
+
                 // ---- Parse Value Caps (axes, hat switch, triggers) ----
                 if (caps.NumberInputValueCaps > 0)
                 {
@@ -293,15 +298,8 @@ namespace PSControllerUI
                             ushort usagePage = vc.UsagePage;
                             ushort usage = vc.IsRange ? vc.UsageMin : vc.UsageMin; // NotRange.Usage is at same offset
 
-                            // Calculate byte/bit offset from DataIndex
-                            // The data index tells us the position in the report
                             int bitSize = vc.BitSize;
                             int reportCount = vc.ReportCount;
-
-                            // For value caps, we use the data index to find position.
-                            // But we can also compute from the report layout directly.
-                            // We'll use HidP_GetUsageValue at runtime for simplicity, but for a
-                            // static map we need the byte offset. Use DataIndex-based calculation.
                             int dataIndex = vc.IsRange ? vc.DataIndexMin : vc.DataIndexMin;
 
                             string usageName = GetUsageName(usagePage, usage);
@@ -319,23 +317,18 @@ namespace PSControllerUI
                                     BitSize = bitSize,
                                     LogicalMin = vc.LogicalMin,
                                     LogicalMax = vc.LogicalMax,
+                                    DataIndex = dataIndex,
                                     Name = usageName,
                                 };
 
-                                // Compute byte offset. For single-report-ID devices, the report ID byte
-                                // shifts all offsets by 1. DataIndex is sequential, so we compute from bit position.
-                                // For HID reports WITH a report ID, byte 0 is the report ID, and data starts at byte 1.
-                                // We'll resolve exact positions at first-packet time using a simpler method.
-
-                                switch (usage)
+                                if (usage == 0x39)
                                 {
-                                    case 0x30: map.LeftStickX = axis; axis.Name = "LeftStickX"; break;   // X
-                                    case 0x31: map.LeftStickY = axis; axis.Name = "LeftStickY"; break;   // Y
-                                    case 0x32: map.RightStickX = axis; axis.Name = "RightStickX"; break; // Z
-                                    case 0x33: map.RightStickY = axis; axis.Name = "RightStickY"; break; // Rz
-                                    case 0x34: map.RightStickX ??= axis; axis.Name = "RightStickX (Rx)"; break; // Rx
-                                    case 0x35: map.RightStickY ??= axis; axis.Name = "RightStickY (Ry)"; break; // Ry
-                                    case 0x39: map.HatSwitch = axis; axis.Name = "HatSwitch"; break;      // Hat Switch
+                                    map.HatSwitch = axis;
+                                    axis.Name = "HatSwitch";
+                                }
+                                else
+                                {
+                                    genericAxes[usage] = axis;
                                 }
                             }
                             // Simulation Controls Page (0x02) - sometimes used for triggers
@@ -346,17 +339,49 @@ namespace PSControllerUI
                                     BitSize = bitSize,
                                     LogicalMin = vc.LogicalMin,
                                     LogicalMax = vc.LogicalMax,
+                                    DataIndex = dataIndex,
                                     Name = usageName,
                                 };
-                                switch (usage)
-                                {
-                                    case 0xC4: map.RightTrigger = axis; axis.Name = "RightTrigger (Accelerator)"; break;
-                                    case 0xC5: map.LeftTrigger = axis; axis.Name = "LeftTrigger (Brake)"; break;
-                                }
+                                simulationAxes[usage] = axis;
                             }
                         }
                     }
                 }
+
+                // ---- Dynamic Axis Resolution ----
+                // 1. Left Stick (always X=0x30, Y=0x31)
+                if (genericAxes.TryGetValue(0x30, out var lx)) { map.LeftStickX = lx; lx.Name = "LeftStickX"; }
+                if (genericAxes.TryGetValue(0x31, out var ly)) { map.LeftStickY = ly; ly.Name = "LeftStickY"; }
+
+                // 2. Right Stick and Triggers
+                // Standard modern layout: Right Stick is Rx (0x33) / Ry (0x34), Triggers are Z (0x32) / Rz (0x35)
+                if (genericAxes.ContainsKey(0x33) && genericAxes.ContainsKey(0x34))
+                {
+                    map.RightStickX = genericAxes[0x33]; map.RightStickX.Name = "RightStickX (Rx)";
+                    map.RightStickY = genericAxes[0x34]; map.RightStickY.Name = "RightStickY (Ry)";
+
+                    if (genericAxes.TryGetValue(0x32, out var lt)) { map.LeftTrigger = lt; lt.Name = "LeftTrigger (Z)"; }
+                    if (genericAxes.TryGetValue(0x35, out var rt)) { map.RightTrigger = rt; rt.Name = "RightTrigger (Rz)"; }
+                }
+                // DirectInput/Older layout: Right Stick is Z (0x32) / Rz (0x35), Triggers are Rx (0x33) / Ry (0x34)
+                else if (genericAxes.ContainsKey(0x32) && genericAxes.ContainsKey(0x35))
+                {
+                    map.RightStickX = genericAxes[0x32]; map.RightStickX.Name = "RightStickX (Z)";
+                    map.RightStickY = genericAxes[0x35]; map.RightStickY.Name = "RightStickY (Rz)";
+
+                    if (genericAxes.TryGetValue(0x33, out var lt)) { map.LeftTrigger = lt; lt.Name = "LeftTrigger (Rx)"; }
+                    if (genericAxes.TryGetValue(0x34, out var rt)) { map.RightTrigger = rt; rt.Name = "RightTrigger (Ry)"; }
+                }
+                // Fallback layout: Right Stick is Z (0x32) / Rx (0x33) (e.g. what the old code mapped)
+                else if (genericAxes.ContainsKey(0x32) && genericAxes.ContainsKey(0x33))
+                {
+                    map.RightStickX = genericAxes[0x32]; map.RightStickX.Name = "RightStickX (Z)";
+                    map.RightStickY = genericAxes[0x33]; map.RightStickY.Name = "RightStickY (Rx)";
+                }
+
+                // If triggers were not resolved from generic desktop, check simulation controls page (0x02)
+                if (map.LeftTrigger == null && simulationAxes.TryGetValue(0xC5, out var simLt)) { map.LeftTrigger = simLt; simLt.Name = "LeftTrigger (Brake)"; }
+                if (map.RightTrigger == null && simulationAxes.TryGetValue(0xC4, out var simRt)) { map.RightTrigger = simRt; simRt.Name = "RightTrigger (Accelerator)"; }
 
                 // ---- Parse Button Caps ----
                 if (caps.NumberInputButtonCaps > 0)
@@ -445,44 +470,31 @@ namespace PSControllerUI
             log?.Invoke($"[HidReportMap] Resolving offsets from first packet (len={length}, reportID=0x{firstPacket[0]:X2})");
             log?.Invoke($"[HidReportMap] Packet: {BitConverter.ToString(firstPacket, 0, Math.Min(length, 20))}...");
 
-            // Strategy: Find centered axes (value ~0x80 = 128) among the first several bytes
-            var centeredBytes = new List<int>();
-            var nonCenteredBytes = new List<int>();
+            // Gather all 8-bit stick and trigger axes
+            var allAxes = new List<AxisInfo>();
+            if (LeftStickX != null) allAxes.Add(LeftStickX);
+            if (LeftStickY != null) allAxes.Add(LeftStickY);
+            if (RightStickX != null) allAxes.Add(RightStickX);
+            if (RightStickY != null) allAxes.Add(RightStickY);
+            if (LeftTrigger != null) allAxes.Add(LeftTrigger);
+            if (RightTrigger != null) allAxes.Add(RightTrigger);
 
-            for (int i = dataStart; i < Math.Min(length, dataStart + 8); i++)
+            // Sort them by their descriptor layout order (DataIndex)
+            allAxes.Sort((a, b) => a.DataIndex.CompareTo(b.DataIndex));
+
+            // Assign byte offsets sequentially starting from dataStart
+            int currentByte = dataStart;
+            foreach (var axis in allAxes)
             {
-                if (firstPacket[i] >= 0x78 && firstPacket[i] <= 0x88) // Near center (120-136)
-                    centeredBytes.Add(i);
-                else
-                    nonCenteredBytes.Add(i);
-            }
-
-            log?.Invoke($"[HidReportMap] Centered bytes (near 0x80): [{string.Join(", ", centeredBytes)}]");
-            log?.Invoke($"[HidReportMap] Non-centered bytes: [{string.Join(", ", nonCenteredBytes)}]");
-
-            // Assign axes to centered byte positions (typically 4 centered bytes for 2 sticks)
-            if (centeredBytes.Count >= 4)
-            {
-                if (LeftStickX != null) LeftStickX.ByteOffset = centeredBytes[0];
-                if (LeftStickY != null) LeftStickY.ByteOffset = centeredBytes[1];
-                if (RightStickX != null) RightStickX.ByteOffset = centeredBytes[2];
-                if (RightStickY != null) RightStickY.ByteOffset = centeredBytes[3];
-            }
-            else if (centeredBytes.Count >= 2)
-            {
-                // Only 2 centered bytes — likely just left stick (or sticks with 0-based range)
-                if (LeftStickX != null) LeftStickX.ByteOffset = centeredBytes[0];
-                if (LeftStickY != null) LeftStickY.ByteOffset = centeredBytes[1];
-
-                // For right stick, look for next bytes after the centered ones
-                int nextByte = centeredBytes[centeredBytes.Count - 1] + 1;
-                if (RightStickX != null) RightStickX.ByteOffset = nextByte;
-                if (RightStickY != null) RightStickY.ByteOffset = nextByte + 1;
+                axis.ByteOffset = currentByte;
+                axis.BitOffset = 0;
+                if (axis.BitSize == 0) axis.BitSize = 8;
+                currentByte += (axis.BitSize + 7) / 8;
             }
 
             // Hat switch: find the byte after axes that contains a typical hat-centered value (0x08 or 0x0F)
             // or has its low nibble as 8/15
-            int axisEnd = (centeredBytes.Count > 0) ? centeredBytes[centeredBytes.Count - 1] + 1 : dataStart;
+            int axisEnd = currentByte;
             for (int i = axisEnd; i < Math.Min(length, axisEnd + 3); i++)
             {
                 byte lowNibble = (byte)(firstPacket[i] & 0x0F);
@@ -559,6 +571,8 @@ namespace PSControllerUI
             LogAxis(log, LeftStickY);
             LogAxis(log, RightStickX);
             LogAxis(log, RightStickY);
+            LogAxis(log, LeftTrigger);
+            LogAxis(log, RightTrigger);
             LogAxis(log, HatSwitch);
             LogBtn(log, BtnSquare);
             LogBtn(log, BtnCross);
