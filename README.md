@@ -1,6 +1,8 @@
 ## Credits
 Mascot artwork photographed by / featuring [@giusugar] and [@kureawalker_] on Instagram.
-Illustration of Reze drawn by: [@inoitoh] on X
+
+Illustration of Reze drawn by: [@inoitoh] on X.
+
 Used with appreciation.
 
 
