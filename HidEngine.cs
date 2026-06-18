@@ -144,13 +144,15 @@ namespace PSControllerUI
             }
 
             Log($"Found controller at: {devicePath}");
-            Log("Opening device handle...");
+            Log("Opening device handle (exclusive)...");
 
-            // Open device with overlapped flag for async reading support
+            // Try exclusive access first — this prevents Steam and other apps from reading
+            // the raw HID device while we're connected, avoiding double-input conflicts
+            // when Xbox 360 emulation is active.
             _deviceHandle = CreateFile(
                 devicePath!,
                 GENERIC_READ | GENERIC_WRITE,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                0, // No sharing — exclusive access
                 IntPtr.Zero,
                 OPEN_EXISTING,
                 FILE_FLAG_OVERLAPPED,
@@ -158,13 +160,31 @@ namespace PSControllerUI
 
             if (_deviceHandle.IsInvalid)
             {
-                int error = Marshal.GetLastWin32Error();
-                Log($"Failed to open device handle. Win32 Error: {error}. (Ensure no other application has claimed the device.)");
-                _deviceHandle = null;
-                return false;
-            }
+                // Exclusive failed (another app may already have the device open).
+                // Fall back to shared access.
+                Log("Exclusive access unavailable, opening with shared access...");
+                _deviceHandle = CreateFile(
+                    devicePath!,
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    IntPtr.Zero,
+                    OPEN_EXISTING,
+                    FILE_FLAG_OVERLAPPED,
+                    IntPtr.Zero);
 
-            Log("Controller opened. Initializing handshake...");
+                if (_deviceHandle.IsInvalid)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    Log($"Failed to open device handle. Win32 Error: {error}. (Ensure no other application has claimed the device.)");
+                    _deviceHandle = null;
+                    return false;
+                }
+                Log("Controller opened (shared mode). WARNING: Other apps like Steam may also read this device, causing double-input with Xbox emulation.");
+            }
+            else
+            {
+                Log("Controller opened (exclusive mode). Other apps will not interfere.");
+            }
 
             // Parse HID Report Descriptor to learn the exact report layout
             _reportMap = HidReportMap.Parse(_deviceHandle, msg => Log(msg));
