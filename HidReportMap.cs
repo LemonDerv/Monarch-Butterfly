@@ -63,7 +63,7 @@ namespace PSControllerUI
 
                 uint value;
                 int status = HidP_GetUsageValue(HIDP_REPORT_TYPE.HidP_Input, UsagePage, LinkCollection, Usage, out value, preparsedData, report, (uint)length);
-                if (status == HIDP_STATUS_SUCCESS)
+                if (status >= 0)
                 {
                     return (int)value;
                 }
@@ -107,7 +107,7 @@ namespace PSControllerUI
                 ushort[] pressedButtons = new ushort[64];
                 uint numButtons = 64;
                 int status = HidP_GetUsages(HIDP_REPORT_TYPE.HidP_Input, UsagePage, LinkCollection, pressedButtons, ref numButtons, preparsedData, report, (uint)length);
-                if (status == HIDP_STATUS_SUCCESS)
+                if (status >= 0)
                 {
                     for (int i = 0; i < numButtons; i++)
                     {
@@ -286,6 +286,7 @@ namespace PSControllerUI
                 if (HidP_GetCaps(preparsedData, out caps) != HIDP_STATUS_SUCCESS)
                 {
                     log?.Invoke("[HidReportMap] Failed to get device capabilities.");
+                    HidD_FreePreparsedData(preparsedData);
                     return null;
                 }
 
@@ -294,6 +295,7 @@ namespace PSControllerUI
                     $"ButtonCaps={caps.NumberInputButtonCaps}, ValueCaps={caps.NumberInputValueCaps}");
 
                 var map = new HidReportMap();
+                map.PreparsedData = preparsedData; // Transfer ownership
                 var diagnosticLines = new List<string>();
 
                 // Temporary collections to hold axes for dynamic mapping after parsing
@@ -375,23 +377,23 @@ namespace PSControllerUI
                 if (genericAxes.TryGetValue(0x31, out var ly)) { map.LeftStickY = ly; ly.Name = "LeftStickY"; }
 
                 // 2. Right Stick and Triggers
-                // Standard modern layout: Right Stick is Rx (0x33) / Ry (0x34), Triggers are Z (0x32) / Rz (0x35)
-                if (genericAxes.ContainsKey(0x33) && genericAxes.ContainsKey(0x34))
-                {
-                    map.RightStickX = genericAxes[0x33]; map.RightStickX.Name = "RightStickX (Rx)";
-                    map.RightStickY = genericAxes[0x34]; map.RightStickY.Name = "RightStickY (Ry)";
-
-                    if (genericAxes.TryGetValue(0x32, out var lt)) { map.LeftTrigger = lt; lt.Name = "LeftTrigger (Z)"; }
-                    if (genericAxes.TryGetValue(0x35, out var rt)) { map.RightTrigger = rt; rt.Name = "RightTrigger (Rz)"; }
-                }
                 // DirectInput/Older layout: Right Stick is Z (0x32) / Rz (0x35), Triggers are Rx (0x33) / Ry (0x34)
-                else if (genericAxes.ContainsKey(0x32) && genericAxes.ContainsKey(0x35))
+                if (genericAxes.ContainsKey(0x32) && genericAxes.ContainsKey(0x35))
                 {
                     map.RightStickX = genericAxes[0x32]; map.RightStickX.Name = "RightStickX (Z)";
                     map.RightStickY = genericAxes[0x35]; map.RightStickY.Name = "RightStickY (Rz)";
 
                     if (genericAxes.TryGetValue(0x33, out var lt)) { map.LeftTrigger = lt; lt.Name = "LeftTrigger (Rx)"; }
                     if (genericAxes.TryGetValue(0x34, out var rt)) { map.RightTrigger = rt; rt.Name = "RightTrigger (Ry)"; }
+                }
+                // Standard modern layout: Right Stick is Rx (0x33) / Ry (0x34), Triggers are Z (0x32) / Rz (0x35)
+                else if (genericAxes.ContainsKey(0x33) && genericAxes.ContainsKey(0x34))
+                {
+                    map.RightStickX = genericAxes[0x33]; map.RightStickX.Name = "RightStickX (Rx)";
+                    map.RightStickY = genericAxes[0x34]; map.RightStickY.Name = "RightStickY (Ry)";
+
+                    if (genericAxes.TryGetValue(0x32, out var lt)) { map.LeftTrigger = lt; lt.Name = "LeftTrigger (Z)"; }
+                    if (genericAxes.TryGetValue(0x35, out var rt)) { map.RightTrigger = rt; rt.Name = "RightTrigger (Rz)"; }
                 }
                 // Fallback layout: Right Stick is Z (0x32) / Rx (0x33) (e.g. what the old code mapped)
                 else if (genericAxes.ContainsKey(0x32) && genericAxes.ContainsKey(0x33))
@@ -472,12 +474,11 @@ namespace PSControllerUI
             catch (Exception ex)
             {
                 log?.Invoke($"[HidReportMap] Exception: {ex.Message}");
-                return null;
-            }
-            finally
-            {
                 if (preparsedData != IntPtr.Zero)
+                {
                     HidD_FreePreparsedData(preparsedData);
+                }
+                return null;
             }
         }
 
