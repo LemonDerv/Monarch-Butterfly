@@ -13,13 +13,17 @@ namespace PSControllerUI
     {
         public IntPtr PreparsedData { get; internal set; } = IntPtr.Zero;
         // --- Axis descriptors ---
-        public AxisInfo? LeftStickX { get; private set; }
-        public AxisInfo? LeftStickY { get; private set; }
-        public AxisInfo? RightStickX { get; private set; }
-        public AxisInfo? RightStickY { get; private set; }
-        public AxisInfo? HatSwitch { get; private set; }
-        public AxisInfo? LeftTrigger { get; private set; }
-        public AxisInfo? RightTrigger { get; private set; }
+        public AxisInfo? LeftStickX { get; internal set; }
+        public AxisInfo? LeftStickY { get; internal set; }
+        public AxisInfo? RightStickX { get; internal set; }
+        public AxisInfo? RightStickY { get; internal set; }
+        public AxisInfo? HatSwitch { get; internal set; }
+        public AxisInfo? LeftTrigger { get; internal set; }
+        public AxisInfo? RightTrigger { get; internal set; }
+
+        // Stored for runtime re-resolution from first idle packet
+        internal Dictionary<ushort, AxisInfo> GenericAxes { get; set; } = new();
+        internal Dictionary<ushort, AxisInfo> SimulationAxes { get; set; } = new();
 
         // --- Button descriptors (HID Usage -> bit index in report) ---
         // Standard Gamepad Button usages (HID Usage Page 0x09 - Button Page)
@@ -298,9 +302,10 @@ namespace PSControllerUI
                 map.PreparsedData = preparsedData; // Transfer ownership
                 var diagnosticLines = new List<string>();
 
-                // Temporary collections to hold axes for dynamic mapping after parsing
-                var genericAxes = new Dictionary<ushort, AxisInfo>();
-                var simulationAxes = new Dictionary<ushort, AxisInfo>();
+                // Collections to hold axes for dynamic mapping after parsing
+                // (stored on the map for runtime re-resolution from the first idle packet)
+                var genericAxes = map.GenericAxes;
+                var simulationAxes = map.SimulationAxes;
 
                 // ---- Parse Value Caps (axes, hat switch, triggers) ----
                 if (caps.NumberInputValueCaps > 0)
@@ -485,12 +490,78 @@ namespace PSControllerUI
         /// <summary>
         /// Resolve the byte/bit offsets for all axes and buttons by analyzing
         /// a real report packet from the device. Call this once after receiving the first packet.
-        /// This uses the HidP_GetUsageValue API to extract values and cross-reference positions.
+        /// Uses the actual resting values to distinguish stick axes (centered) from trigger axes (at minimum).
         /// </summary>
         public void ResolveOffsetsFromPacket(byte[] firstPacket, int length, Action<string>? log = null)
         {
             log?.Invoke($"[HidReportMap] First report packet received (len={length}, reportID=0x{firstPacket[0]:X2})");
             log?.Invoke($"[HidReportMap] Packet: {BitConverter.ToString(firstPacket, 0, Math.Min(length, 20))}...");
+
+            // Read resting values of all ambiguous generic desktop axes (Z, Rx, Ry, Rz)
+            // to determine which are sticks (resting near center) vs triggers (resting near min).
+            ushort[] ambiguousUsages = { 0x32, 0x33, 0x34, 0x35 }; // Z, Rx, Ry, Rz
+            var centeredAxes = new List<AxisInfo>();
+            var minAxes = new List<AxisInfo>();
+
+            foreach (var usage in ambiguousUsages)
+            {
+                if (!GenericAxes.TryGetValue(usage, out var axis)) continue;
+
+                int raw = axis.ReadRaw(firstPacket, length, PreparsedData);
+                double range = axis.LogicalMax - axis.LogicalMin;
+                if (range <= 0) continue;
+
+                double normalized = (raw - axis.LogicalMin) / range; // 0.0 to 1.0
+                string usageName = axis.Name;
+                log?.Invoke($"[HidReportMap] Axis 0x{usage:X2} ({usageName}): raw={raw}, range=[{axis.LogicalMin}..{axis.LogicalMax}], normalized={normalized:F3}");
+
+                // Centered axis (stick): normalized ~0.5 (within 0.25..0.75 tolerance)
+                // Minimum axis (trigger): normalized near 0 (< 0.25)
+                if (normalized >= 0.25 && normalized <= 0.75)
+                {
+                    centeredAxes.Add(axis);
+                }
+                else
+                {
+                    minAxes.Add(axis);
+                }
+            }
+
+            log?.Invoke($"[HidReportMap] Centered axes (sticks): {centeredAxes.Count}, Min axes (triggers): {minAxes.Count}");
+
+            // If we detected exactly 2 centered axes, those are the right stick.
+            // Any remaining axes at minimum are triggers.
+            if (centeredAxes.Count == 2)
+            {
+                // Sort by usage to get consistent X then Y ordering
+                centeredAxes.Sort((a, b) => a.Usage.CompareTo(b.Usage));
+
+                RightStickX = centeredAxes[0]; centeredAxes[0].Name = $"RightStickX (0x{centeredAxes[0].Usage:X2})";
+                RightStickY = centeredAxes[1]; centeredAxes[1].Name = $"RightStickY (0x{centeredAxes[1].Usage:X2})";
+
+                // Assign trigger axes from those resting at minimum
+                if (minAxes.Count >= 1) { LeftTrigger = minAxes[0]; minAxes[0].Name = $"LeftTrigger (0x{minAxes[0].Usage:X2})"; }
+                else { LeftTrigger = null; }
+                if (minAxes.Count >= 2) { RightTrigger = minAxes[1]; minAxes[1].Name = $"RightTrigger (0x{minAxes[1].Usage:X2})"; }
+                else { RightTrigger = null; }
+
+                log?.Invoke($"[HidReportMap] Re-resolved: RightStickX=0x{centeredAxes[0].Usage:X2}, RightStickY=0x{centeredAxes[1].Usage:X2}");
+            }
+            else if (centeredAxes.Count == 0 && minAxes.Count >= 2)
+            {
+                // All ambiguous axes are at minimum — likely no analog sticks beyond X/Y.
+                // Treat first two as right stick (they might just be idle),
+                // but clear triggers to avoid ghost input.
+                LeftTrigger = null;
+                RightTrigger = null;
+                log?.Invoke($"[HidReportMap] All ambiguous axes at minimum. Keeping initial right stick guess, clearing triggers.");
+            }
+            // else: can't determine, keep the initial guess from Parse()
+
+            // Also check: if triggers exist from simulation page, don't override
+            if (LeftTrigger == null && SimulationAxes.TryGetValue(0xC5, out var simLt)) { LeftTrigger = simLt; simLt.Name = "LeftTrigger (Brake)"; }
+            if (RightTrigger == null && SimulationAxes.TryGetValue(0xC4, out var simRt)) { RightTrigger = simRt; simRt.Name = "RightTrigger (Accelerator)"; }
+
             LogResolvedMap(log);
         }
 
