@@ -438,10 +438,10 @@ namespace PSControllerUI
             byte lx, ly, rx, ry;
             if (map != null && map.IsValid && map.LeftStickX != null)
             {
-                lx = map.LeftStickX.ReadByte(data, length);
-                ly = map.LeftStickY?.ReadByte(data, length) ?? 128;
-                rx = map.RightStickX?.ReadByte(data, length) ?? 128;
-                ry = map.RightStickY?.ReadByte(data, length) ?? 128;
+                lx = map.LeftStickX.ReadByte(data, length, map.PreparsedData);
+                ly = map.LeftStickY?.ReadByte(data, length, map.PreparsedData) ?? 128;
+                rx = map.RightStickX?.ReadByte(data, length, map.PreparsedData) ?? 128;
+                ry = map.RightStickY?.ReadByte(data, length, map.PreparsedData) ?? 128;
             }
             else
             {
@@ -476,19 +476,19 @@ namespace PSControllerUI
 
             if (map != null && map.IsValid && map.BtnCross != null)
             {
-                square   = map.BtnSquare?.IsPressed(data, length) ?? false;
-                cross    = map.BtnCross?.IsPressed(data, length) ?? false;
-                circle   = map.BtnCircle?.IsPressed(data, length) ?? false;
-                triangle = map.BtnTriangle?.IsPressed(data, length) ?? false;
-                l1       = map.BtnL1?.IsPressed(data, length) ?? false;
-                r1       = map.BtnR1?.IsPressed(data, length) ?? false;
-                l2       = map.BtnL2?.IsPressed(data, length) ?? false;
-                r2       = map.BtnR2?.IsPressed(data, length) ?? false;
-                select   = map.BtnSelect?.IsPressed(data, length) ?? false;
-                start    = map.BtnStart?.IsPressed(data, length) ?? false;
-                l3       = map.BtnL3?.IsPressed(data, length) ?? false;
-                r3       = map.BtnR3?.IsPressed(data, length) ?? false;
-                ps       = map.BtnPS?.IsPressed(data, length) ?? false;
+                square   = map.BtnSquare?.IsPressed(data, length, map.PreparsedData) ?? false;
+                cross    = map.BtnCross?.IsPressed(data, length, map.PreparsedData) ?? false;
+                circle   = map.BtnCircle?.IsPressed(data, length, map.PreparsedData) ?? false;
+                triangle = map.BtnTriangle?.IsPressed(data, length, map.PreparsedData) ?? false;
+                l1       = map.BtnL1?.IsPressed(data, length, map.PreparsedData) ?? false;
+                r1       = map.BtnR1?.IsPressed(data, length, map.PreparsedData) ?? false;
+                l2       = map.BtnL2?.IsPressed(data, length, map.PreparsedData) ?? false;
+                r2       = map.BtnR2?.IsPressed(data, length, map.PreparsedData) ?? false;
+                select   = map.BtnSelect?.IsPressed(data, length, map.PreparsedData) ?? false;
+                start    = map.BtnStart?.IsPressed(data, length, map.PreparsedData) ?? false;
+                l3       = map.BtnL3?.IsPressed(data, length, map.PreparsedData) ?? false;
+                r3       = map.BtnR3?.IsPressed(data, length, map.PreparsedData) ?? false;
+                ps       = map.BtnPS?.IsPressed(data, length, map.PreparsedData) ?? false;
             }
             else
             {
@@ -508,8 +508,8 @@ namespace PSControllerUI
                 ps       = length >= 8 && (data[7] & 0x01) != 0;
             }
             // Read analog trigger values if available; fallback to digital buttons
-            byte l2Analog = map?.LeftTrigger?.ReadByte(data, length) ?? (byte)(l2 ? 255 : 0);
-            byte r2Analog = map?.RightTrigger?.ReadByte(data, length) ?? (byte)(r2 ? 255 : 0);
+            byte l2Analog = map?.LeftTrigger?.ReadByte(data, length, map.PreparsedData) ?? (byte)(l2 ? 255 : 0);
+            byte r2Analog = map?.RightTrigger?.ReadByte(data, length, map.PreparsedData) ?? (byte)(r2 ? 255 : 0);
 
             // Perform UI update via Dispatcher
             Dispatcher.BeginInvoke(new Action(() =>

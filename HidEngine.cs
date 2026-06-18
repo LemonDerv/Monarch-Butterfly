@@ -462,6 +462,12 @@ namespace PSControllerUI
                 _deviceHandle = null;
             }
 
+            if (_reportMap != null)
+            {
+                try { _reportMap.Dispose(); } catch { }
+                _reportMap = null;
+            }
+
             Log("Disconnected.");
             ConnectionStatusChanged?.Invoke(false);
         }

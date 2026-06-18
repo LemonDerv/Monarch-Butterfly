@@ -9,8 +9,9 @@ namespace PSControllerUI
     /// Parsed HID report layout: exact byte/bit positions for each gamepad control,
     /// populated automatically from the device's HID Report Descriptor via HidP_* API.
     /// </summary>
-    public class HidReportMap
+    public class HidReportMap : IDisposable
     {
+        public IntPtr PreparsedData { get; internal set; } = IntPtr.Zero;
         // --- Axis descriptors ---
         public AxisInfo? LeftStickX { get; private set; }
         public AxisInfo? LeftStickY { get; private set; }
@@ -44,57 +45,37 @@ namespace PSControllerUI
 
         public class AxisInfo
         {
-            public int ByteOffset;  // Byte index in the report
-            public int BitOffset;   // Bit offset within the byte (usually 0 for full-byte values)
-            public int BitSize;     // Number of bits (8 for a standard byte-sized axis)
+            public ushort UsagePage;
+            public ushort Usage;
+            public ushort LinkCollection;
             public int LogicalMin;
             public int LogicalMax;
+            public int BitSize;
             public int DataIndex;   // Tracks field ordering in descriptor
             public string Name = "";
 
             /// <summary>
-            /// Read the raw value from the report buffer.
+            /// Read the raw value from the report buffer using the Windows HID parser.
             /// </summary>
-            public int ReadRaw(byte[] data, int length)
+            public int ReadRaw(byte[] report, int length, IntPtr preparsedData)
             {
-                if (ByteOffset >= length) return LogicalMin;
+                if (preparsedData == IntPtr.Zero) return (LogicalMin + LogicalMax) / 2;
 
-                if (BitSize == 8 && BitOffset == 0)
+                uint value;
+                int status = HidP_GetUsageValue(HIDP_REPORT_TYPE.HidP_Input, UsagePage, LinkCollection, Usage, out value, preparsedData, report, (uint)length);
+                if (status == HIDP_STATUS_SUCCESS)
                 {
-                    return data[ByteOffset];
+                    return (int)value;
                 }
-                else if (BitSize == 4 && BitOffset == 0)
-                {
-                    return data[ByteOffset] & 0x0F;
-                }
-                else if (BitSize == 4 && BitOffset == 4)
-                {
-                    return (data[ByteOffset] >> 4) & 0x0F;
-                }
-                else
-                {
-                    // Generic bit extraction
-                    int totalBitOffset = ByteOffset * 8 + BitOffset;
-                    int value = 0;
-                    for (int i = 0; i < BitSize; i++)
-                    {
-                        int byteIdx = (totalBitOffset + i) / 8;
-                        int bitIdx = (totalBitOffset + i) % 8;
-                        if (byteIdx < length && (data[byteIdx] & (1 << bitIdx)) != 0)
-                        {
-                            value |= (1 << i);
-                        }
-                    }
-                    return value;
-                }
+                return (LogicalMin + LogicalMax) / 2;
             }
 
             /// <summary>
             /// Read as normalized float -1.0 to 1.0 (for sticks) or 0.0 to 1.0 (for triggers).
             /// </summary>
-            public double ReadNormalized(byte[] data, int length)
+            public double ReadNormalized(byte[] report, int length, IntPtr preparsedData)
             {
-                int raw = ReadRaw(data, length);
+                int raw = ReadRaw(report, length, preparsedData);
                 double range = LogicalMax - LogicalMin;
                 if (range <= 0) return 0.0;
                 return ((raw - LogicalMin) / range) * 2.0 - 1.0;
@@ -103,26 +84,38 @@ namespace PSControllerUI
             /// <summary>
             /// Read as byte 0-255 scaled from logical range.
             /// </summary>
-            public byte ReadByte(byte[] data, int length)
+            public byte ReadByte(byte[] report, int length, IntPtr preparsedData)
             {
-                int raw = ReadRaw(data, length);
+                int raw = ReadRaw(report, length, preparsedData);
                 double range = LogicalMax - LogicalMin;
-                if (range <= 0) return 0;
+                if (range <= 0) return 128;
                 return (byte)Math.Clamp((int)(((raw - LogicalMin) / range) * 255.0), 0, 255);
             }
         }
 
         public class ButtonInfo
         {
-            public int ByteOffset;
-            public int BitOffset;
-            public int UsageIndex; // HID button usage number (1-based)
+            public ushort UsagePage;
+            public ushort LinkCollection;
+            public ushort UsageIndex; // HID button usage number (1-based)
             public string Name = "";
 
-            public bool IsPressed(byte[] data, int length)
+            public bool IsPressed(byte[] report, int length, IntPtr preparsedData)
             {
-                if (ByteOffset >= length) return false;
-                return (data[ByteOffset] & (1 << BitOffset)) != 0;
+                if (preparsedData == IntPtr.Zero) return false;
+
+                ushort[] pressedButtons = new ushort[64];
+                uint numButtons = 64;
+                int status = HidP_GetUsages(HIDP_REPORT_TYPE.HidP_Input, UsagePage, LinkCollection, pressedButtons, ref numButtons, preparsedData, report, (uint)length);
+                if (status == HIDP_STATUS_SUCCESS)
+                {
+                    for (int i = 0; i < numButtons; i++)
+                    {
+                        if (pressedButtons[i] == UsageIndex)
+                            return true;
+                    }
+                }
+                return false;
             }
         }
 
@@ -250,6 +243,28 @@ namespace PSControllerUI
         private static extern int HidP_GetValueCaps(HIDP_REPORT_TYPE ReportType,
             [Out] HIDP_VALUE_CAPS[] ValueCaps, ref ushort ValueCapsLength, IntPtr PreparsedData);
 
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetUsageValue(
+            HIDP_REPORT_TYPE ReportType,
+            ushort UsagePage,
+            ushort LinkCollection,
+            ushort Usage,
+            out uint UsageValue,
+            IntPtr PreparsedData,
+            byte[] Report,
+            uint ReportLength);
+
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetUsages(
+            HIDP_REPORT_TYPE ReportType,
+            ushort UsagePage,
+            ushort LinkCollection,
+            [Out] ushort[] UsageList,
+            ref uint UsageLength,
+            IntPtr PreparsedData,
+            byte[] Report,
+            uint ReportLength);
+
         // ---- Main parsing entry point ----
 
         /// <summary>
@@ -314,9 +329,12 @@ namespace PSControllerUI
                             {
                                 var axis = new AxisInfo
                                 {
-                                    BitSize = bitSize,
+                                    UsagePage = usagePage,
+                                    Usage = usage,
+                                    LinkCollection = vc.LinkCollection,
                                     LogicalMin = vc.LogicalMin,
                                     LogicalMax = vc.LogicalMax,
+                                    BitSize = bitSize,
                                     DataIndex = dataIndex,
                                     Name = usageName,
                                 };
@@ -336,9 +354,12 @@ namespace PSControllerUI
                             {
                                 var axis = new AxisInfo
                                 {
-                                    BitSize = bitSize,
+                                    UsagePage = usagePage,
+                                    Usage = usage,
+                                    LinkCollection = vc.LinkCollection,
                                     LogicalMin = vc.LogicalMin,
                                     LogicalMax = vc.LogicalMax,
+                                    BitSize = bitSize,
                                     DataIndex = dataIndex,
                                     Name = usageName,
                                 };
@@ -408,7 +429,13 @@ namespace PSControllerUI
                                 {
                                     for (ushort u = bc.UsageMin; u <= bc.UsageMax; u++)
                                     {
-                                        var btn = new ButtonInfo { UsageIndex = u, Name = $"Button {u}" };
+                                        var btn = new ButtonInfo
+                                        {
+                                            UsagePage = bc.UsagePage,
+                                            LinkCollection = bc.LinkCollection,
+                                            UsageIndex = u,
+                                            Name = $"Button {u}"
+                                        };
                                         AssignButton(map, u, btn);
                                     }
                                 }
@@ -423,7 +450,13 @@ namespace PSControllerUI
 
                                 if (bc.UsagePage == 0x09)
                                 {
-                                    var btn = new ButtonInfo { UsageIndex = bc.UsageMin, Name = $"Button {bc.UsageMin}" };
+                                    var btn = new ButtonInfo
+                                    {
+                                        UsagePage = bc.UsagePage,
+                                        LinkCollection = bc.LinkCollection,
+                                        UsageIndex = bc.UsageMin,
+                                        Name = $"Button {bc.UsageMin}"
+                                    };
                                     AssignButton(map, bc.UsageMin, btn);
                                 }
                             }
@@ -455,112 +488,11 @@ namespace PSControllerUI
         /// </summary>
         public void ResolveOffsetsFromPacket(byte[] firstPacket, int length, Action<string>? log = null)
         {
-            // For generic HID gamepads, the byte layout after the report ID is typically:
-            // [ReportID] [Axes...] [HatSwitch+Buttons packed] [More buttons...]
-            //
-            // The HidP_ API gives us DataIndex values which correspond to sequential bit positions
-            // in the report. But the exact byte offset depends on the report descriptor's field order.
-            //
-            // The most robust method: scan the first idle packet for bytes that are at "center" values
-            // (0x80 for 8-bit axes, 0x7F sometimes) to identify axis positions.
-
-            bool hasReportId = (length > 0 && firstPacket[0] != 0x00);
-            int dataStart = hasReportId ? 1 : 0;
-
-            log?.Invoke($"[HidReportMap] Resolving offsets from first packet (len={length}, reportID=0x{firstPacket[0]:X2})");
+            log?.Invoke($"[HidReportMap] First report packet received (len={length}, reportID=0x{firstPacket[0]:X2})");
             log?.Invoke($"[HidReportMap] Packet: {BitConverter.ToString(firstPacket, 0, Math.Min(length, 20))}...");
-
-            // Gather all 8-bit stick and trigger axes
-            var allAxes = new List<AxisInfo>();
-            if (LeftStickX != null) allAxes.Add(LeftStickX);
-            if (LeftStickY != null) allAxes.Add(LeftStickY);
-            if (RightStickX != null) allAxes.Add(RightStickX);
-            if (RightStickY != null) allAxes.Add(RightStickY);
-            if (LeftTrigger != null) allAxes.Add(LeftTrigger);
-            if (RightTrigger != null) allAxes.Add(RightTrigger);
-
-            // Sort them by their descriptor layout order (DataIndex)
-            allAxes.Sort((a, b) => a.DataIndex.CompareTo(b.DataIndex));
-
-            // Assign byte offsets sequentially starting from dataStart
-            int currentByte = dataStart;
-            foreach (var axis in allAxes)
-            {
-                axis.ByteOffset = currentByte;
-                axis.BitOffset = 0;
-                if (axis.BitSize == 0) axis.BitSize = 8;
-                currentByte += (axis.BitSize + 7) / 8;
-            }
-
-            // Hat switch: find the byte after axes that contains a typical hat-centered value (0x08 or 0x0F)
-            // or has its low nibble as 8/15
-            int axisEnd = currentByte;
-            for (int i = axisEnd; i < Math.Min(length, axisEnd + 3); i++)
-            {
-                byte lowNibble = (byte)(firstPacket[i] & 0x0F);
-                if (lowNibble == 0x08 || lowNibble == 0x0F)
-                {
-                    if (HatSwitch != null)
-                    {
-                        HatSwitch.ByteOffset = i;
-                        HatSwitch.BitOffset = 0;
-                        if (HatSwitch.BitSize == 0) HatSwitch.BitSize = 4;
-                    }
-
-                    // Buttons packed in the same byte's upper nibble or subsequent bytes
-                    AssignButtonOffsets(i, firstPacket, length, log);
-                    break;
-                }
-            }
-
-            // Log final resolved mapping
             LogResolvedMap(log);
         }
 
-        private void AssignButtonOffsets(int hatByte, byte[] packet, int length, Action<string>? log)
-        {
-            // Generic HID gamepad button layout relative to hat switch byte:
-            // Hat byte upper nibble + next bytes contain packed button bits.
-            //
-            // Standard layout for most clones:
-            //   hatByte[7:4] = face buttons (square, cross, circle, triangle)
-            //   hatByte+1    = shoulder/system buttons (L1, R1, L2, R2, select, start, L3, R3)
-            //   hatByte+2    = PS button (bit 0)
-
-            int btnByteBase = hatByte; // Face buttons in upper nibble of hat byte
-            int btnByte1 = hatByte + 1; // Shoulder/system
-            int btnByte2 = hatByte + 2; // PS/Home
-
-            // Standard button-page assignment:
-            // Button 1 = bit4 of hatByte (or varies)
-            // We use the standard HID button usage 1-13 ordering:
-            // Btn1=Square, Btn2=Cross, Btn3=Circle, Btn4=Triangle,
-            // Btn5=L1, Btn6=R1, Btn7=L2, Btn8=R2,
-            // Btn9=Select, Btn10=Start, Btn11=L3, Btn12=R3, Btn13=PS
-
-            if (BtnSquare != null) { BtnSquare.ByteOffset = btnByteBase; BtnSquare.BitOffset = 4; }
-            if (BtnCross != null) { BtnCross.ByteOffset = btnByteBase; BtnCross.BitOffset = 5; }
-            if (BtnCircle != null) { BtnCircle.ByteOffset = btnByteBase; BtnCircle.BitOffset = 6; }
-            if (BtnTriangle != null) { BtnTriangle.ByteOffset = btnByteBase; BtnTriangle.BitOffset = 7; }
-
-            if (btnByte1 < length)
-            {
-                if (BtnL1 != null) { BtnL1.ByteOffset = btnByte1; BtnL1.BitOffset = 0; }
-                if (BtnR1 != null) { BtnR1.ByteOffset = btnByte1; BtnR1.BitOffset = 1; }
-                if (BtnL2 != null) { BtnL2.ByteOffset = btnByte1; BtnL2.BitOffset = 2; }
-                if (BtnR2 != null) { BtnR2.ByteOffset = btnByte1; BtnR2.BitOffset = 3; }
-                if (BtnSelect != null) { BtnSelect.ByteOffset = btnByte1; BtnSelect.BitOffset = 4; }
-                if (BtnStart != null) { BtnStart.ByteOffset = btnByte1; BtnStart.BitOffset = 5; }
-                if (BtnL3 != null) { BtnL3.ByteOffset = btnByte1; BtnL3.BitOffset = 6; }
-                if (BtnR3 != null) { BtnR3.ByteOffset = btnByte1; BtnR3.BitOffset = 7; }
-            }
-
-            if (btnByte2 < length && BtnPS != null)
-            {
-                BtnPS.ByteOffset = btnByte2;
-                BtnPS.BitOffset = 0;
-            }
-        }
 
         private void LogResolvedMap(Action<string>? log)
         {
@@ -593,13 +525,13 @@ namespace PSControllerUI
         private static void LogAxis(Action<string> log, AxisInfo? axis)
         {
             if (axis == null) return;
-            log($"  {axis.Name}: byte[{axis.ByteOffset}] bits={axis.BitSize} range=[{axis.LogicalMin}..{axis.LogicalMax}]");
+            log($"  {axis.Name}: Page=0x{axis.UsagePage:X4} Usage=0x{axis.Usage:X4} LinkCollection={axis.LinkCollection} Range=[{axis.LogicalMin}..{axis.LogicalMax}]");
         }
 
         private static void LogBtn(Action<string> log, ButtonInfo? btn)
         {
             if (btn == null) return;
-            log($"  {btn.Name}: byte[{btn.ByteOffset}] bit={btn.BitOffset}");
+            log($"  {btn.Name}: Page=0x{btn.UsagePage:X4} UsageIndex={btn.UsageIndex} LinkCollection={btn.LinkCollection}");
         }
 
         // ---- Helpers ----
@@ -660,17 +592,26 @@ namespace PSControllerUI
 
         public void ReadHatSwitch(byte[] data, int length, out bool up, out bool right, out bool down, out bool left)
         {
-            if (HatSwitch == null)
+            if (HatSwitch == null || PreparsedData == IntPtr.Zero)
             {
                 up = right = down = left = false;
                 return;
             }
-            int hat = HatSwitch.ReadRaw(data, length);
+            int hat = HatSwitch.ReadRaw(data, length, PreparsedData);
             // Standard hat encoding: 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW, 8+ = centered
             up = hat == 0 || hat == 1 || hat == 7;
             right = hat == 1 || hat == 2 || hat == 3;
             down = hat == 3 || hat == 4 || hat == 5;
             left = hat == 5 || hat == 6 || hat == 7;
+        }
+
+        public void Dispose()
+        {
+            if (PreparsedData != IntPtr.Zero)
+            {
+                HidD_FreePreparsedData(PreparsedData);
+                PreparsedData = IntPtr.Zero;
+            }
         }
     }
 }
